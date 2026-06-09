@@ -19,6 +19,8 @@ interface AdminViewProps {
   settings: SystemSettings;
   onUpdateSettings: (updated: SystemSettings) => void;
   onCloseAdmin: () => void;
+  usersList: User[];
+  onUpdateUsers: (updated: User[]) => void;
 }
 
 export default function AdminView({
@@ -26,7 +28,9 @@ export default function AdminView({
   onUpdateVisitors,
   settings,
   onUpdateSettings,
-  onCloseAdmin
+  onCloseAdmin,
+  usersList,
+  onUpdateUsers
 }: AdminViewProps) {
   // Authentication & Session
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -83,11 +87,7 @@ export default function AdminView({
     localStorage.getItem('insforge_anon_key') || ''
   );
 
-  // Custom User Management
-  const [usersList, setUsersList] = useState<User[]>(() => {
-    const saved = localStorage.getItem('guestbook_users');
-    return saved ? JSON.parse(saved) : MOCK_USERS;
-  });
+  // Custom User Management is now passed via props
   const [newUserName, setNewUserName] = useState('');
   const [newUserUsername, setNewUserUsername] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
@@ -160,6 +160,8 @@ export default function AdminView({
           ...found,
           last_login: new Date().toISOString(),
         };
+        const updated = usersList.map(u => u.id === found.id ? loggedUser : u);
+        onUpdateUsers(updated);
         setCurrentUser(loggedUser);
         localStorage.setItem('guestbook_admin_user', JSON.stringify(loggedUser));
         setLoginError('');
@@ -465,8 +467,7 @@ export default function AdminView({
     };
 
     const updated = [...usersList, newUserObj];
-    setUsersList(updated);
-    localStorage.setItem('guestbook_users', JSON.stringify(updated));
+    onUpdateUsers(updated);
 
     setNewUserName('');
     setNewUserUsername('');
@@ -489,8 +490,7 @@ export default function AdminView({
   const confirmDeleteUser = () => {
     if (userToDelete) {
       const updated = usersList.filter(u => u.id !== userToDelete.id);
-      setUsersList(updated);
-      localStorage.setItem('guestbook_users', JSON.stringify(updated));
+      onUpdateUsers(updated);
       setUserToDelete(null);
     }
   };
@@ -530,8 +530,7 @@ export default function AdminView({
       return u;
     });
 
-    setUsersList(updated);
-    localStorage.setItem('guestbook_users', JSON.stringify(updated));
+    onUpdateUsers(updated);
     setEditingUserId(null);
 
     // Sync active session if the edited user is the current active administrator

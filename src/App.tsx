@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Maximize2, Minimize2, Sparkles, BookOpen } from 'lucide-react';
 import KioskView from './components/KioskView';
 import AdminView from './components/AdminView';
-import { Visitor, SystemSettings } from './types';
-import { generateMockVisitors } from './data/mockData';
+import { Visitor, SystemSettings, User } from './types';
+import { generateMockVisitors, MOCK_USERS } from './data/mockData';
 import { db, isFirebaseConnected, handleFirestoreError, OperationType, auth } from './lib/firebase';
 import { collection, doc, getDoc, setDoc, getDocs, orderBy, query, deleteDoc } from 'firebase/firestore';
 
@@ -46,10 +46,16 @@ export default function App() {
     };
   });
 
-  // 3. Current active view: 'kiosk' (Visitor screen) or 'admin' (Library Office)
+  // 3. User lists state (Manajemen Pengguna)
+  const [usersList, setUsersList] = useState<User[]>(() => {
+    const saved = localStorage.getItem('guestbook_users');
+    return saved ? JSON.parse(saved) : MOCK_USERS;
+  });
+
+  // 4. Current active view: 'kiosk' (Visitor screen) or 'admin' (Library Office)
   const [viewMode, setViewMode] = useState<'kiosk' | 'admin'>('kiosk');
   
-  // 4. Kiosk fullscreen trigger state
+  // 5. Kiosk fullscreen trigger state
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Sync state to local storage and Firebase
@@ -60,9 +66,9 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('school_library_settings', JSON.stringify(settings));
     
-    // Save settings to Firebase if connected and logged in
+    // Save settings to Firebase if connected
     async function saveSettingsToFirebase() {
-      if (isFirebaseConnected && db && auth.currentUser) {
+      if (isFirebaseConnected && db) {
         try {
           const settingsRef = doc(db, 'system_settings', 'default');
           await setDoc(settingsRef, {
@@ -88,6 +94,57 @@ export default function App() {
     }
     saveSettingsToFirebase();
   }, [settings]);
+
+  // Synchronize usersList to local storage and Firestore
+  useEffect(() => {
+    localStorage.setItem('guestbook_users', JSON.stringify(usersList));
+
+    async function saveUsersToFirebase() {
+      if (isFirebaseConnected && db) {
+        try {
+          // Write every user to the 'library_users' collection in Firestore
+          for (const user of usersList) {
+            const userRef = doc(db, 'library_users', user.username.toLowerCase());
+            await setDoc(userRef, {
+              id: user.id,
+              name: user.name,
+              username: user.username,
+              password: user.password || (user.role === 'admin' ? 'admin123' : 'petugas123'),
+              role: user.role,
+              last_login: user.last_login
+            }).catch((err) => {
+              handleFirestoreError(err, OperationType.UPDATE, `library_users/${user.username}`);
+              throw err;
+            });
+          }
+        } catch (err) {
+          console.error('Failed to sync users with Firebase:', err);
+        }
+      }
+    }
+    saveUsersToFirebase();
+  }, [usersList]);
+
+  const handleUpdateUsers = async (updatedList: User[]) => {
+    // 1. Find if any user was deleted, and delete them from Firestore
+    if (isFirebaseConnected && db) {
+      try {
+        const deletedUsers = usersList.filter(u => !updatedList.some(ul => ul.id === u.id));
+        for (const du of deletedUsers) {
+          const docRef = doc(db, 'library_users', du.username.toLowerCase());
+          await deleteDoc(docRef).catch((err) => {
+            handleFirestoreError(err, OperationType.DELETE, `library_users/${du.username}`);
+            throw err;
+          });
+        }
+      } catch (err) {
+        console.error('Failed to delete user from Firebase:', err);
+      }
+    }
+    
+    // 2. Set memory state
+    setUsersList(updatedList);
+  };
 
   // Load from Firebase at startup if connected
   useEffect(() => {
@@ -132,6 +189,44 @@ export default function App() {
             library_motto_id: dbSettings.library_motto_id || '"Jendela dunia terbuka lebar bagi mereka yang gemar membaca dan mencari ilmu."',
             library_motto_en: dbSettings.library_motto_en || '"The window of the world is wide open for those who love to read and seek knowledge."',
           });
+        }
+
+        // Fetch library users
+        const usersRef = collection(db, 'library_users');
+        const usersSnapshot = await getDocs(usersRef).catch((err) => {
+          handleFirestoreError(err, OperationType.LIST, 'library_users');
+          throw err;
+        });
+
+        const dbUsers: User[] = [];
+        usersSnapshot.forEach((doc) => {
+          const ud = doc.data();
+          dbUsers.push({
+            id: ud.id,
+            name: ud.name,
+            username: ud.username,
+            password: ud.password || '',
+            role: ud.role as 'admin' | 'petugas',
+            last_login: ud.last_login || null
+          });
+        });
+
+        if (dbUsers.length > 0) {
+          setUsersList(dbUsers);
+        } else {
+          // If Firestore is completely empty, initialize it with current local users
+          const currentLocalUsers = JSON.parse(localStorage.getItem('guestbook_users') || 'null') || MOCK_USERS;
+          for (const user of currentLocalUsers) {
+            const userRef = doc(db, 'library_users', user.username.toLowerCase());
+            await setDoc(userRef, {
+              id: user.id,
+              name: user.name,
+              username: user.username,
+              password: user.password || (user.role === 'admin' ? 'admin123' : 'petugas123'),
+              role: user.role,
+              last_login: user.last_login
+            });
+          }
         }
       } catch (err) {
         console.error('Unified Firebase sync error:', err);
@@ -287,6 +382,8 @@ export default function App() {
             settings={settings}
             onUpdateSettings={setSettings}
             onCloseAdmin={() => setViewMode('kiosk')}
+            usersList={usersList}
+            onUpdateUsers={handleUpdateUsers}
           />
         )}
       </div>
