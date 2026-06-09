@@ -52,6 +52,10 @@ export default function App() {
     return saved ? JSON.parse(saved) : MOCK_USERS;
   });
 
+  // Track whether we have loaded settings/users successfully from Firebase
+  // to avoid overwriting database values with default values on startup (race condition)
+  const [isLoadedFromFirebase, setIsLoadedFromFirebase] = useState(false);
+
   // 4. Current active view: 'kiosk' (Visitor screen) or 'admin' (Library Office)
   const [viewMode, setViewMode] = useState<'kiosk' | 'admin'>('kiosk');
   
@@ -66,9 +70,9 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('school_library_settings', JSON.stringify(settings));
     
-    // Save settings to Firebase if connected
+    // Save settings to Firebase if connected and remote state has loaded
     async function saveSettingsToFirebase() {
-      if (isFirebaseConnected && db) {
+      if (isFirebaseConnected && db && isLoadedFromFirebase) {
         try {
           const settingsRef = doc(db, 'system_settings', 'default');
           await setDoc(settingsRef, {
@@ -93,14 +97,14 @@ export default function App() {
       }
     }
     saveSettingsToFirebase();
-  }, [settings]);
+  }, [settings, isLoadedFromFirebase]);
 
   // Synchronize usersList to local storage and Firestore
   useEffect(() => {
     localStorage.setItem('guestbook_users', JSON.stringify(usersList));
 
     async function saveUsersToFirebase() {
-      if (isFirebaseConnected && db) {
+      if (isFirebaseConnected && db && isLoadedFromFirebase) {
         try {
           // Write every user to the 'library_users' collection in Firestore
           for (const user of usersList) {
@@ -123,11 +127,11 @@ export default function App() {
       }
     }
     saveUsersToFirebase();
-  }, [usersList]);
+  }, [usersList, isLoadedFromFirebase]);
 
   const handleUpdateUsers = async (updatedList: User[]) => {
     // 1. Find if any user was deleted, and delete them from Firestore
-    if (isFirebaseConnected && db) {
+    if (isFirebaseConnected && db && isLoadedFromFirebase) {
       try {
         const deletedUsers = usersList.filter(u => !updatedList.some(ul => ul.id === u.id));
         for (const du of deletedUsers) {
@@ -149,7 +153,10 @@ export default function App() {
   // Load from Firebase at startup if connected
   useEffect(() => {
     async function syncWithFirebase() {
-      if (!isFirebaseConnected || !db) return;
+      if (!isFirebaseConnected || !db) {
+        setIsLoadedFromFirebase(true);
+        return;
+      }
       
       try {
         // Fetch visitors
@@ -230,6 +237,8 @@ export default function App() {
         }
       } catch (err) {
         console.error('Unified Firebase sync error:', err);
+      } finally {
+        setIsLoadedFromFirebase(true);
       }
     }
 
