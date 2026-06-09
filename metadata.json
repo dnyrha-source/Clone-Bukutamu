@@ -1,0 +1,6 @@
+{
+  "name": "Buku Tamu Digital Perpustakaan",
+  "description": "Aplikasi buku tamu digital eksternal untuk perpustakaan sekolah dengan mode kiosk, multi-bahasa (ID/EN), tanda tangan digital, capture foto webcam, text-to-speech, dan dashboard admin statistik mumpuni.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

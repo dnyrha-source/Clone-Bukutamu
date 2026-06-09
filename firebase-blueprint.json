@@ -1,0 +1,167 @@
+{
+  "entities": {
+    "Visitor": {
+      "title": "Visitor",
+      "description": "Information about a library visitor registered at the kiosk",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the visitor record"
+        },
+        "visit_number": {
+          "type": "string",
+          "description": "A serialized daily unique visit sequence number"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the visitor"
+        },
+        "institution": {
+          "type": "string",
+          "description": "The agency, school, or organization the visitor represents"
+        },
+        "position": {
+          "type": "string",
+          "description": "Job position or status of the visitor"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Active phone number of the visitor"
+        },
+        "email": {
+          "type": "string",
+          "description": "Valid email address of the visitor"
+        },
+        "country_code": {
+          "type": "string",
+          "description": "ISO Country code of visitor origin"
+        },
+        "country_name": {
+          "type": "string",
+          "description": "Country of origin"
+        },
+        "province": {
+          "type": "string",
+          "description": "Province of origin"
+        },
+        "city": {
+          "type": "string",
+          "description": "City of origin"
+        },
+        "visitor_count": {
+          "type": "number",
+          "description": "Number of companions or people in the visit group"
+        },
+        "visit_category": {
+          "type": "string",
+          "description": "Type/Category of visit (e.g. Umum, Siswa, Guru)"
+        },
+        "visit_purpose": {
+          "type": "string",
+          "description": "Purpose of visiting the library"
+        },
+        "impression": {
+          "type": "string",
+          "description": "Impression about library facilities or services"
+        },
+        "suggestion": {
+          "type": "string",
+          "description": "Feedback, suggestions, or critique for improvement"
+        },
+        "signature_file": {
+          "type": "string",
+          "description": "Base64 encoded string representing the visitor's signature"
+        },
+        "visitor_photo": {
+          "type": "string",
+          "description": "Base64 encoded string representing the captured camera photo"
+        },
+        "language": {
+          "type": "string",
+          "enum": ["id", "en"],
+          "description": "Preferred language of interface used during registration"
+        },
+        "visit_date": {
+          "type": "string",
+          "format": "date",
+          "description": "The date the visit occurs formatted as YYYY-MM-DD"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the record was created"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the record was last updated"
+        }
+      },
+      "required": ["id", "visit_number", "name", "institution", "visit_date"]
+    },
+    "SystemSettings": {
+      "title": "SystemSettings",
+      "description": "Global application properties and synthesizer controls",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Constant ID of the settings record"
+        },
+        "tts_enabled": {
+          "type": "boolean",
+          "description": "Whether Text-to-Speech audio synthesizer welcoming is active"
+        },
+        "tts_volume": {
+          "type": "number",
+          "description": "The pitch/volume of greeting speech (index from 0 to 1)"
+        },
+        "tts_rate": {
+          "type": "number",
+          "description": "The pacing of greeting speech (index from 0.5 to 2.0)"
+        },
+        "library_name": {
+          "type": "string",
+          "description": "Customized header name of the library"
+        },
+        "library_logo": {
+          "type": "string",
+          "description": "Base64 string representing custom header logo image"
+        },
+        "head_librarian_name": {
+          "type": "string",
+          "description": "Custom head librarian name"
+        },
+        "head_librarian_nip": {
+          "type": "string",
+          "description": "Custom head librarian NIP"
+        },
+        "library_motto_id": {
+          "type": "string",
+          "description": "Custom library motto (Indonesian)"
+        },
+        "library_motto_en": {
+          "type": "string",
+          "description": "Custom library motto (English)"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when configuration was modified"
+        }
+      },
+      "required": ["id", "tts_enabled", "tts_volume", "tts_rate", "library_name"]
+    }
+  },
+  "firestore": {
+    "/visitors/{visitorId}": {
+      "schema": "Visitor",
+      "description": "Registry of guests who registered at the library desk"
+    },
+    "/system_settings/{settingsId}": {
+      "schema": "SystemSettings",
+      "description": "Persistent global settings for headers and speech synthesis rates"
+    }
+  }
+}

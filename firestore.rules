@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net default catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper: Valid ID pattern to safeguard against resource poisoning
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Helper: Checks if the request is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper: Check if user has verified email (standard for Google Sign-In) or signed in via password
+    function isAuthorizedUser() {
+      return isSignedIn() && (
+        request.auth.token.email_verified == true ||
+        request.auth.token.firebase.sign_in_provider == 'password'
+      );
+    }
+
+    // --- Entity: Visitor Rules ---
+    match /visitors/{visitorId} {
+      // Allow anyone (public kiosk or staff) to list or read visitor records for the recent grid and state counts
+      allow read, list: if true;
+
+      // Allow anyone (public kiosk) to create a visitor log with strict schema validations
+      allow create: if isValidId(visitorId) && isValidVisitor(request.resource.data);
+
+      // Only authorized staff/admins can delete or modify details
+      allow delete: if isAuthorizedUser();
+      allow update: if isAuthorizedUser();
+    }
+
+    // Helper: Validates visitor payload structure, string lengths, and required fields
+    function isValidVisitor(data) {
+      return data.keys().hasAll(['id', 'visit_number', 'name', 'institution', 'visit_date', 'created_at', 'updated_at'])
+        && data.id is string && data.id.size() <= 128
+        && data.visit_number is string && data.visit_number.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 256
+        && data.institution is string && data.institution.size() > 0 && data.institution.size() <= 256
+        && data.visit_date is string && data.visit_date.size() == 10
+        && data.created_at is string && data.created_at.size() <= 64
+        && data.updated_at is string && data.updated_at.size() <= 64;
+    }
+
+    // --- Entity: SystemSettings Rules ---
+    match /system_settings/{settingsId} {
+      // Settings are public to read for any visitor entering the kiosk homepage
+      allow read: if true;
+
+      // Only email verified administrators/staff are permitted to modify library presets
+      allow create, update, delete: if isAuthorizedUser() && isValidId(settingsId) && isValidSystemSettings(request.resource.data);
+    }
+
+    // Helper: Validates library presets payload structure
+    function isValidSystemSettings(data) {
+      return data.keys().hasAll(['id', 'tts_enabled', 'tts_volume', 'tts_rate', 'library_name'])
+        && data.id is string && data.id.size() <= 128
+        && data.tts_enabled is bool
+        && data.tts_volume is number
+        && data.tts_rate is number
+        && data.library_name is string && data.library_name.size() > 0 && data.library_name.size() <= 256
+        && (!('head_librarian_name' in data) || data.head_librarian_name == null || (data.head_librarian_name is string && data.head_librarian_name.size() <= 256))
+        && (!('head_librarian_nip' in data) || data.head_librarian_nip == null || (data.head_librarian_nip is string && data.head_librarian_nip.size() <= 128))
+        && (!('library_motto_id' in data) || data.library_motto_id == null || (data.library_motto_id is string && data.library_motto_id.size() <= 1000))
+        && (!('library_motto_en' in data) || data.library_motto_en == null || (data.library_motto_en is string && data.library_motto_en.size() <= 1000));
+    }
+  }
+}
