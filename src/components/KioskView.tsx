@@ -13,6 +13,19 @@ interface KioskViewProps {
   visitors: Visitor[];
 }
 
+function getFlagEmoji(countryCode: string): string {
+  if (!countryCode || countryCode === 'OTHER') return '🌍';
+  try {
+    const codePoints = countryCode
+      .toUpperCase()
+      .split('')
+      .map(char => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  } catch (e) {
+    return '🌍';
+  }
+}
+
 export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors }: KioskViewProps) {
   const [lang, setLang] = useState<'id' | 'en'>('id');
   
@@ -78,14 +91,14 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
       name: 'Nama Lengkap',
       institution: 'Instansi / Asal',
       position: 'Jabatan (Opsional)',
-      phone: 'Nomor HP / WhatsApp',
+      phone: 'Nomor HP / WhatsApp (Opsional)',
       email: 'Alamat Email (Opsional)',
       country: 'Negara Asal',
       province: 'Provinsi / State (Opsional)',
-      city: 'Kota / Kabupaten',
+      city: 'Kota / Kabupaten (Opsional)',
       visitor_count: 'Jumlah Pengunjung (Termasuk Anda)',
       category: 'Kategori Kunjungan',
-      purpose: 'Tujuan Kunjungan',
+      purpose: 'Tujuan Kunjungan (Opsional)',
       impression: 'Kesan Terhadap Perpustakaan',
       suggestion: 'Saran dan Masukan',
       
@@ -130,14 +143,14 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
       name: 'Full Name',
       institution: 'Institution / Origin',
       position: 'Position (Optional)',
-      phone: 'Phone / WhatsApp Number',
+      phone: 'Phone / WhatsApp Number (Optional)',
       email: 'Email Address (Optional)',
       country: 'Country of Origin',
       province: 'Province / State (Optional)',
-      city: 'City / Regency',
+      city: 'City / Regency (Optional)',
       visitor_count: 'Number of Visitors (Including Self)',
       category: 'Visit Category',
-      purpose: 'Purpose of Visit',
+      purpose: 'Purpose of Visit (Optional)',
       impression: 'Impressions of the Library',
       suggestion: 'Suggestions & Input',
       
@@ -171,6 +184,18 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
       resetBtn: 'Submit Another'
     }
   }[lang];
+
+  const categoryTranslations: Record<string, { id: string; en: string }> = {
+    'Studi Banding': { id: 'Studi Banding', en: 'Comparative Study' },
+    'Kunjungan Dinas': { id: 'Kunjungan Dinas', en: 'Official/Office Visit' },
+    'Observasi': { id: 'Observasi', en: 'Observation' },
+    'Penelitian': { id: 'Penelitian', en: 'Research' },
+    'Benchmarking': { id: 'Benchmarking', en: 'Benchmarking' },
+    'Magang': { id: 'Magang', en: 'Internship' },
+    'Silaturahmi': { id: 'Silaturahmi', en: 'Goodwill Visit' },
+    'Kunjungan Perpustakaan': { id: 'Kunjungan Perpustakaan', en: 'Library Visit' },
+    'Lainnya': { id: 'Lainnya', en: 'Other' },
+  };
 
   // TTS implementation
   const speakThankYou = () => {
@@ -232,11 +257,9 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
     if (!formData.name.trim()) newErrors.name = t.errorRequired;
     if (!formData.institution.trim()) newErrors.institution = t.errorRequired;
     
-    // Phone validation
+    // Phone validation (fully optional, only format-restricted if non-empty)
     const cleanPhone = formData.phone.trim();
-    if (!cleanPhone) {
-      newErrors.phone = t.errorRequired;
-    } else if (cleanPhone.replace(/[^0-9+]/g, '').length < 10) {
+    if (cleanPhone && cleanPhone.replace(/[^0-9+]/g, '').length < 8) {
       newErrors.phone = t.errorPhone;
     }
 
@@ -245,7 +268,6 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
       newErrors.email = t.errorEmail;
     }
 
-    if (!formData.city.trim()) newErrors.city = t.errorRequired;
     if (formData.visitor_count < 1) newErrors.visitor_count = t.errorCount;
 
     setErrors(newErrors);
@@ -529,7 +551,7 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
                       {/* Nomor HP */}
                       <div>
                         <label id="label-phone" className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1 select-none">
-                          {t.phone} <span className="text-rose-500">*</span>
+                          {t.phone}
                         </label>
                         <input
                           id="phone-input"
@@ -578,7 +600,7 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
                           >
                             <span className="flex items-center gap-1.5">
                               <span className="font-mono text-base">
-                                {formData.country_code === 'ID' ? '🇮🇩' : '🌍'}
+                                {getFlagEmoji(formData.country_code)}
                               </span>
                               {formData.country_name}
                             </span>
@@ -615,7 +637,7 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
                                     className="w-full text-left px-4 py-2 hover:bg-indigo-50 text-xs text-slate-750 flex items-center gap-2 cursor-pointer transition-colors"
                                   >
                                     <span className="text-sm font-mono">
-                                      {country.code === 'ID' ? '🇮🇩' : '🏳️'}
+                                      {getFlagEmoji(country.code)}
                                     </span>
                                     <span>{country.name}</span>
                                   </button>
@@ -650,7 +672,7 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
                       {/* Kota */}
                       <div>
                         <label id="label-city" className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1 select-none">
-                          {t.city} <span className="text-rose-500">*</span>
+                          {t.city}
                         </label>
                         <input
                           id="city-input"
@@ -659,11 +681,8 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
                           value={formData.city}
                           onChange={handleInputChange}
                           placeholder={t.placeholderCity}
-                          className={`w-full px-4 py-2.5 rounded-xl border ${
-                            errors.city ? 'border-rose-400 bg-rose-50/10' : 'border-slate-200 bg-slate-50 focus:border-indigo-500 focus:bg-white'
-                          } text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all`}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:border-indigo-500 focus:bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all"
                         />
-                        {errors.city && <p className="text-xs text-rose-500 mt-1 ml-1 font-medium">{errors.city}</p>}
                       </div>
                     </div>
                   </div>
@@ -709,7 +728,7 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
                         >
                           {VISIT_CATEGORIES.map((cat) => (
                             <option key={cat} value={cat}>
-                              {cat}
+                              {categoryTranslations[cat]?.[lang] || cat}
                             </option>
                           ))}
                         </select>
@@ -719,7 +738,7 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
                     {/* Tujuan Kunjungan Text Area */}
                     <div>
                       <label id="label-purpose" className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1 select-none">
-                        {t.purpose} <span className="text-rose-500">*</span>
+                        {t.purpose}
                       </label>
                       <textarea
                         id="purpose-textarea"
@@ -729,9 +748,7 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
                         value={formData.visit_purpose}
                         onChange={handleInputChange}
                         placeholder={t.placeholderPurpose}
-                        className={`w-full px-4 py-3 rounded-xl border ${
-                          errors.visit_purpose ? 'border-rose-400 bg-rose-50/10' : 'border-slate-200 bg-slate-50 focus:border-indigo-500 focus:bg-white'
-                        } text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-none`}
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:border-indigo-500 focus:bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-none"
                       />
                       <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 px-1 font-medium">
                         <span>{formData.visit_purpose.length} / 500 characters</span>
@@ -887,7 +904,7 @@ export default function KioskView({ onNewVisit, settings, onOpenAdmin, visitors 
                           </p>
                         </div>
                         <div className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-100/50 px-2 py-1 rounded-md shrink-0">
-                          {visitor.visit_category.replace('Kunjungan ', '').substring(0, 8)}
+                          {(categoryTranslations[visitor.visit_category]?.[lang] || visitor.visit_category).replace('Kunjungan ', '')}
                         </div>
                       </div>
                     );
